@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Translate and Refine Text</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    #google_translate_element select {
+      display: none;
+    }
+    .goog-te-gadget {
+      font-size: 0;
+    }
+    .goog-te-gadget .goog-te-combo {
+      display: inline-block;
+      font-size: 16px;
+      padding: 10px 20px;
+      background-color: #000;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .goog-te-combo:hover {
+      background-color: #444;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div class="container mx-auto p-6 bg-white rounded-lg shadow-lg max-w-2xl">
+    <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Translate and Refine Text</h1>
+    <textarea id="textToTranslate" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none h-40" placeholder="Paste or type text here..."></textarea>
+    <div class="flex justify-between items-center mt-4">
+      <div id="google_translate_element" class="flex-shrink-0"></div>
+      <button id="translateButton" class="bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:ring-opacity-50">
+        Translate Text
+      </button>
+    </div>
+    <div id="translatedText" class="mt-4 p-3 bg-gray-100 rounded-lg hidden"></div>
+    
+    <div id="refinementSection" class="mt-6 hidden">
+      <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">Refine Your Translation</h2>
+      <form id="refineForm" class="space-y-4">
+        <div>
+          <label for="customPrompt" class="block text-sm font-medium text-gray-700 mb-1">Custom Prompt:</label>
+          <input type="text" id="customPrompt" name="customPrompt" value="check grammar and logic" class="w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        
+        <input type="hidden" id="chatGptKey" name="chatGptKey" value="<%= chatGptKey %>">
+        <button type="submit" class="w-full bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg transition duration-300" id="refineButton">
+          Refine Text
+        </button>
+      </form>
+      
+      <div class="mt-6">
+        <h2 class="text-xl font-semibold mb-2">Refined Output:</h2>
+        <textarea id="refinedOutput" rows="4" class="w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-lg bg-gray-50" placeholder="Refined text will appear here..." readonly></textarea>
+        <button id="copyButton" class="bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg mt-2 transition duration-300">
+          Copy to Clipboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    function googleTranslateElementInit() {
+      new google.translate.TranslateElement({
+        layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+        autoDisplay: false
+      }, 'google_translate_element');
+    }
+
+    document.getElementById('translateButton').addEventListener('click', function() {
+      const text = document.getElementById('textToTranslate').value;
+      const chatGptKey = "<%= chatGptKey %>";
+
+      document.getElementById('translatedText').innerText = text;
+      document.getElementById('translatedText').style.display = 'block';
+      document.getElementById('refinementSection').style.display = 'block';
+
+      document.getElementById('chatGptKey').value = chatGptKey;
+    });
+
+    $(document).ready(function() {
+      $('#refineForm').on('submit', function(event) {
+        event.preventDefault();
+
+        const translatedText = $('#translatedText').text().trim();
+        const customPrompt = $('#customPrompt').val().trim();
+        const chatGptKey = $('#chatGptKey').val();
+
+        if (!translatedText || !customPrompt) {
+          alert('Please provide both the translated text and a custom prompt.');
+          return;
+        }
+
+        const fullPrompt = translatedText + ' ' + customPrompt;
+        const formData = {
+          translatedText: translatedText,
+          customPrompt: fullPrompt,
+          chatGptKey: chatGptKey
+        };
+
+        $('#refineButton').prop('disabled', true).text('Refining...');
+
+        $.ajax({
+          url: '/refine',
+          type: 'POST',
+          data: formData,
+          success: function(response) {
+            $('#refinedOutput').val(response.refinedText);
+          },
+          error: function(xhr, status, error) {
+            console.error('Error:', error);
+            $('#refinedOutput').val('An error occurred while processing your request.');
+          },
+          complete: function() {
+            $('#refineButton').prop('disabled', false).text('Refine Text');
+          }
+        });
+      });
+
+      document.getElementById('copyButton').addEventListener('click', function() {
+        const refinedText = document.getElementById('refinedOutput').value;
+        
+        if (refinedText) {
+          navigator.clipboard.writeText(refinedText).then(() => {
+            alert('Refined text copied to clipboard!');
+          }).catch(err => {
+            console.error('Error copying text: ', err);
+            alert('Failed to copy text.');
+          });
+        } else {
+          alert('There is no text to copy.');
+        }
+      });
+    });
+  </script>
+  <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+</body>
+</html>
